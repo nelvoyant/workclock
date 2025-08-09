@@ -1,21 +1,41 @@
-import React, { useEffect } from "react";
+import "./BoardView.css"; // optional tiny styles
+import React, { useEffect, useState } from "react";
 import mondaySdk from "monday-sdk-js";
 
 const monday = mondaySdk();
 
-const BoardView = () => {
+export default function BoardView() {
+  const [prefs, setPrefs] = useState(null);
+
   useEffect(() => {
-    monday.listen("context", (res) => {
-      console.log("Board View Context:", res.data);
+    monday.storage.getItem("workclock:user:settings").then((res) => {
+      const raw = res?.data?.value;
+      let normalized = {};
+
+      if (typeof raw === "string") {
+        // try to parse JSON; fall back if it was "[object Object]"
+        try {
+          const maybe = JSON.parse(raw);
+          normalized = maybe && typeof maybe === "object" ? maybe : {};
+        } catch {
+          normalized = {};
+        }
+      } else if (raw && typeof raw === "object") {
+        normalized = raw;
+      }
+
+      console.log("Normalized settings:", normalized);
+      setPrefs(normalized);
     });
   }, []);
 
   return (
-    <div style={{ padding: "2rem" }}>
-      <h2>👋 Hello from WorkClock Board View</h2>
-      <p>This is your board context area.</p>
+    <div style={{ padding: 12 }}>
+      <div style={{ fontSize: 12, color: "#666", marginBottom: 8 }}>
+        Saved timezone: <b>{prefs?.timezone || "— none —"}</b>
+      </div>
+      {/* existing content below… */}
+      <div>No people assigned yet.</div>
     </div>
   );
-};
-
-export default BoardView;
+}

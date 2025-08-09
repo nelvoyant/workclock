@@ -1,0 +1,35 @@
+/* BoardView.css – keep it tiny for now */
+.people-list {
+  font: 14px/1.4 sans-serif;
+}
+.person {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 4px 0;
+}
+.avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+}
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.dot.working {
+  background: #00c875;
+} /* 🟢 */
+.dot.lastHour {
+  background: #ffcb00;
+} /* 🟡 */
+.dot.off {
+  background: #e2445c;
+} /* 🔴 */
+.tz {
+  font-size: 12px;
+  color: #666;
+  margin-left: 4px;
+}
