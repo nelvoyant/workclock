@@ -1,35 +1,130 @@
-/* BoardView.css – keep it tiny for now */
-.people-list {
-  font: 14px/1.4 sans-serif;
+/* Root font + CSS custom properties used by the measuring script */
+.wc-root {
+  --wc-row-font: 13px/1.25 -apple-system, BlinkMacSystemFont, Segoe UI, Roboto,
+    Helvetica, Arial, sans-serif;
+  --name-col: auto; /* JS sets this to the pixel width of the longest (avatar+gap+name) */
+  font: var(--wc-row-font);
+  color: #111;
 }
-.person {
+
+/* Toolbar */
+.wc-toolbar {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 2px 6px 6px 6px;
+  font-size: 12px;
+  color: #555;
+}
+.wc-legend {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
   gap: 6px;
-  margin: 4px 0;
 }
-.avatar {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-}
-.dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
+.key {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
   display: inline-block;
 }
-.dot.working {
-  background: #00c875;
-} /* 🟢 */
-.dot.lastHour {
-  background: #ffcb00;
-} /* 🟡 */
-.dot.off {
-  background: #999; /* neutral gray */
-} /* ⚪ */
-.tz {
-  font-size: 12px;
+.key.working {
+  background: #2d7ff9;
+}
+.key.lastHour {
+  background: #d97706;
+}
+.key.off {
+  background: #9aa3af;
+}
+.wc-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Grid table (each row is a 3-col grid) */
+.wc-table {
+  width: 100%;
+}
+.wc-row {
+  display: grid;
+  /* name column fixed to --name-col; time hugs content; filler absorbs the rest */
+  grid-template-columns: var(--name-col) max-content 1fr;
+  align-items: center;
+  column-gap: 8px;
+  padding: 2px 6px;
+  border-bottom: 1px solid #eee;
+}
+.wc-col {
+  min-width: 0;
+}
+
+/* Name cell */
+.wc-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.wc-avatar {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+}
+.wc-name-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Time cell */
+.wc-timewrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.wc-time {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Status glyph (color-blind friendly square) */
+.wc-glyph {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  display: inline-block;
+}
+.wc-glyph.working {
+  background: #2d7ff9;
+}
+.wc-glyph.lastHour {
+  background: #d97706;
+}
+.wc-glyph.off {
+  background: #9aa3af;
+}
+
+/* Optional row tint when enabled */
+.wc-root.row-color .wc-row.working {
+  background: rgba(45, 127, 249, 0.06);
+}
+.wc-root.row-color .wc-row.lastHour {
+  background: rgba(217, 119, 6, 0.1);
+}
+.wc-root.row-color .wc-row.off {
+  background: rgba(156, 163, 175, 0.08);
+}
+
+/* Empty state */
+.wc-empty {
   color: #666;
-  margin-left: 4px;
+  padding: 6px;
 }
