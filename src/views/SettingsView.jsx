@@ -35,6 +35,7 @@ export default function SettingsView() {
   const [workDays, setWorkDays] = useState(["Mon", "Tue", "Wed", "Thu", "Fri"]);
   const [compact, setCompact] = useState(false);
   const [rowColorMode, setRowColorMode] = useState(false);
+  const [userTzText, setUserTzText] = useState(""); // lines of id=Timezone
   const [, setNowTick] = useState(0); // for live clock refresh
 
   // Load saved settings
@@ -54,6 +55,13 @@ export default function SettingsView() {
       if (typeof saved.compact === "boolean") setCompact(saved.compact);
       if (typeof saved.rowColorMode === "boolean")
         setRowColorMode(saved.rowColorMode);
+      if (saved.userTimezones && typeof saved.userTimezones === "object") {
+        // convert object to editable lines
+        const lines = Object.entries(saved.userTimezones)
+          .map(([k, v]) => `${k}=${v}`)
+          .join("\n");
+        setUserTzText(lines);
+      }
     });
   }, []);
 
@@ -83,6 +91,19 @@ export default function SettingsView() {
       compact,
       rowColorMode,
     };
+    // parse userTzText into object mapping
+    if (userTzText && userTzText.trim()) {
+      const map = {};
+      userTzText.split(/\r?\n/).forEach((line) => {
+        const t = line.trim();
+        if (!t) return;
+        const [k, ...rest] = t.split(/[:=]/);
+        if (!k) return;
+        const v = rest.join(":") || "";
+        if (v) map[k.trim()] = v.trim();
+      });
+      payload.userTimezones = map;
+    }
     await monday.storage.setItem(
       "workclock:user:settings",
       JSON.stringify(payload)
@@ -208,6 +229,24 @@ export default function SettingsView() {
           />{" "}
           Tint entire row by status
         </label>
+      </div>
+
+      <label style={{ display: "block", marginTop: 12 }}>
+        User timezone overrides
+      </label>
+      <div style={{ marginTop: 6 }}>
+        <small style={{ color: "#666" }}>
+          Enter one mapping per line in the format{" "}
+          <code>userId=America/Toronto</code> or{" "}
+          <code>Full Name=Europe/London</code>. Mappings by user ID take
+          precedence.
+        </small>
+        <textarea
+          placeholder={"e.g. 123456=America/Toronto\nJane Doe=Europe/London"}
+          value={userTzText}
+          onChange={(e) => setUserTzText(e.target.value)}
+          style={{ width: "100%", minHeight: 90, marginTop: 6, padding: 8 }}
+        />
       </div>
 
       <div>

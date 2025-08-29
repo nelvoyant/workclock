@@ -17,6 +17,31 @@
   font-size: 12px;
   color: #555;
 }
+
+.wc-toolbar .wc-header {
+  margin-left: 12px;
+  margin-right: 4px;
+  background: transparent;
+  border-bottom: none;
+  padding: 0;
+  display: grid;
+  grid-template-columns: var(--name-col) max-content 1fr;
+  column-gap: 8px;
+  align-items: center;
+}
+
+.wc-header button .sort-icon {
+  margin-left: 6px;
+  font-size: 11px;
+  color: #94a3b8;
+  display: inline-flex;
+  align-items: center;
+}
+
+.wc-header button.active .sort-icon {
+  color: #0b66f6;
+}
+
 .wc-legend {
   display: flex;
   gap: 12px;
@@ -83,6 +108,38 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.wc-name-meta {
+  margin-left: 8px;
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+}
+
+.wc-timeline {
+  width: 160px; /* reasonable default; constrained by grid */
+  height: 8px;
+  background: rgba(0, 0, 0, 0.06);
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
+.wc-timeline-fill {
+  height: 100%;
+  width: 0%;
+  transition: width 240ms ease;
+  border-radius: 6px 0 0 6px;
+}
+
+.wc-timeline-fill.working {
+  background: linear-gradient(90deg, #4f8ef7, #3bb0ff);
+}
+.wc-timeline-fill.lastHour {
+  background: linear-gradient(90deg, #f6a623, #ffb86b);
+}
+.wc-timeline-fill.off {
+  background: linear-gradient(90deg, #cfd8dc, #e0e6ea);
+}
 
 /* Time cell */
 .wc-timewrap {
@@ -93,6 +150,20 @@
 .wc-time {
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
+}
+
+/* Timezone label in the third column */
+.wc-tz {
+  color: #64748b;
+  font-size: 12px;
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.wc-tz .assumed {
+  color: #94a3b8;
+  font-style: italic;
+  margin-left: 6px;
 }
 
 /* Status glyph (color-blind friendly square) */
@@ -127,4 +198,219 @@
 .wc-empty {
   color: #666;
   padding: 6px;
+}
+
+/* Header (column-aligned with rows) */
+.wc-header {
+  display: grid;
+  grid-template-columns: var(--name-col) max-content 1fr;
+  align-items: center;
+  column-gap: 8px;
+  padding: 6px 6px;
+  border-bottom: 1px solid #e6eefb;
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.02), transparent);
+}
+
+.wc-header button {
+  appearance: none;
+  -webkit-appearance: none;
+  border: none;
+  background: transparent;
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-weight: 600;
+  color: #334155;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease, transform 0.06s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.wc-header button:hover {
+  background: rgba(15, 23, 42, 0.04);
+}
+
+.wc-header button:active {
+  transform: translateY(1px);
+}
+
+.wc-header button.active {
+  background: #eef6ff;
+  color: #0b66f6;
+  box-shadow: inset 0 0 0 1px rgba(11, 102, 246, 0.08);
+}
+
+/* Make sure buttons don't collapse on small screens */
+.wc-header button {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 480px) {
+  .wc-header {
+    font-size: 12px;
+    padding: 6px 4px;
+    column-gap: 6px;
+  }
+}
+
+/* Tooltip for local time */
+.wc-tooltip {
+  position: absolute;
+  background: #fff;
+  border: 1px solid #e6eefb;
+  box-shadow: 0 6px 18px rgba(12, 33, 58, 0.08);
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  color: #17203a;
+  min-width: 180px;
+  /* hidden by default */
+  display: none;
+  z-index: 20;
+}
+
+.wc-row {
+  position: relative;
+}
+
+.wc-row:hover .wc-tooltip,
+.wc-row:focus-within .wc-tooltip,
+.wc-row.open .wc-tooltip {
+  display: block;
+}
+
+.wc-tooltip-time {
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.wc-tooltip-hours,
+.wc-tooltip-status {
+  color: #475569;
+  font-size: 12px;
+}
+
+.wc-edit {
+  margin-left: 12px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(16, 24, 40, 0.08);
+  background: #ffffff;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.override-form input[type="text"],
+.override-form input[type="time"] {
+  border: 1px solid #e6e9ee;
+  border-radius: 6px;
+}
+
+.override-form button {
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+}
+
+.override-form button:first-of-type {
+  background: #0b66f6;
+  color: white;
+}
+
+.override-form button:last-of-type {
+  background: #f3f4f6;
+}
+
+/* Ensure tooltip doesn't overflow horizontally */
+.wc-tooltip {
+  right: 6px;
+  top: 100%;
+  transform: translateY(8px);
+  max-width: calc(100vw - 40px);
+}
+
+.wc-tooltip::after {
+  content: "";
+  position: absolute;
+  top: -6px;
+  right: 14px;
+  border-width: 6px;
+  border-style: solid;
+  border-color: transparent transparent #fff transparent;
+}
+
+/* Pagination controls (used by BoardView to cap items per page) */
+.wc-pager {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 6px;
+  justify-content: flex-end;
+  font-size: 13px;
+  color: #374151;
+}
+
+.wc-pager .page-info {
+  color: #64748b;
+  font-size: 12px;
+  margin-right: 8px;
+}
+
+.wc-pager .page-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 34px;
+  height: 34px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(16, 24, 40, 0.06);
+  background: #fff;
+  color: #0f172a;
+  cursor: pointer;
+  transition: background 0.12s ease, transform 0.06s ease;
+}
+
+.wc-pager .page-btn:hover {
+  background: rgba(15, 23, 42, 0.04);
+}
+
+.wc-pager .page-btn:active {
+  transform: translateY(1px);
+}
+
+.wc-pager .page-btn[disabled],
+.wc-pager .page-btn.disabled {
+  opacity: 0.45;
+  cursor: default;
+  background: #f8fafc;
+}
+
+.wc-pager .page-btn.active {
+  background: #eef6ff;
+  color: #0b66f6;
+  box-shadow: inset 0 0 0 1px rgba(11, 102, 246, 0.06);
+}
+
+.wc-pager .page-size {
+  margin-left: 8px;
+  padding: 6px;
+  border-radius: 6px;
+  border: 1px solid #e6edf6;
+  background: #fff;
+  font-size: 13px;
+}
+
+@media (max-width: 560px) {
+  .wc-pager {
+    justify-content: center;
+    font-size: 12px;
+  }
+  .wc-pager .page-info {
+    display: none;
+  }
 }
