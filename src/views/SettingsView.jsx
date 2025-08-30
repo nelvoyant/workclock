@@ -67,7 +67,6 @@ export default function SettingsView() {
   const [startHour, setStartHour] = useState("09:00");
   const [endHour, setEndHour] = useState("17:00");
   const [workDays, setWorkDays] = useState(["Mon", "Tue", "Wed", "Thu", "Fri"]);
-  const [compact, setCompact] = useState(false);
   const [rowColorMode, setRowColorMode] = useState(false);
 
   const [userOverrides, setUserOverrides] = useState({});
@@ -97,7 +96,6 @@ export default function SettingsView() {
       if (saved.startHour) setStartHour(saved.startHour);
       if (saved.endHour) setEndHour(saved.endHour);
       if (Array.isArray(saved.workDays)) setWorkDays(saved.workDays);
-      if (typeof saved.compact === "boolean") setCompact(saved.compact);
       if (typeof saved.rowColorMode === "boolean")
         setRowColorMode(saved.rowColorMode);
       // legacy: saved.userTimezones no longer edited via a textbox UI
@@ -300,7 +298,6 @@ export default function SettingsView() {
       startHour,
       endHour,
       workDays,
-      compact,
       rowColorMode,
     };
     // userTimezones freeform textbox removed; centralized overrides are persisted below
@@ -415,14 +412,6 @@ export default function SettingsView() {
           marginTop: 12,
         }}
       >
-        <label style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-          <input
-            type="checkbox"
-            checked={compact}
-            onChange={(e) => setCompact(e.target.checked)}
-          />{" "}
-          Compact rows
-        </label>
         <label style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
           <input
             type="checkbox"
