@@ -108,6 +108,28 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* Override badge shown next to a name when a per-user override exists */
+.wc-override-badge {
+  margin-left: 8px;
+  border: none;
+  background: transparent;
+  padding: 2px 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border-radius: 6px;
+}
+.wc-override-badge svg {
+  width: 14px;
+  height: 14px;
+}
+.wc-override-badge:hover,
+.wc-override-badge:focus {
+  background: rgba(245, 158, 11, 0.08);
+}
+
 .wc-name-meta {
   margin-left: 8px;
   margin-top: 6px;

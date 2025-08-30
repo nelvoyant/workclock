@@ -349,7 +349,7 @@ export default function BoardView() {
             mappedByName ||
             tz;
           const uStart = userOverride.startHour || start;
-          const uEnd = userOverride.endHour || end;
+          const uEnd = userOverride.endHour || "17:00";
           const s = computeStatusForNow(userTz, uStart, uEnd, days).status;
           const order = { working: 0, lastHour: 1, off: 2 };
           return order[s] ?? 3;
@@ -382,7 +382,7 @@ export default function BoardView() {
 
       return withIndex.map((x) => x.u);
     },
-    [tz, start, end, days, prefs]
+    [tz, start, days, prefs]
   );
 
   const applySort = async (criteria, direction = "asc") => {
@@ -499,14 +499,8 @@ export default function BoardView() {
       </div>
     );
 
-  // When the online-only filter is active but hides everyone, show a clearer message
-  if (
-    hasPeopleColumn &&
-    users.length &&
-    visibleUsers.length === 0 &&
-    showOnlineOnly
-  )
-    return <div className="wc-empty">No teammates are online right now.</div>;
+  // NOTE: when online-only hides everyone we used to return early and hide the toolbar.
+  // Keep the toolbar visible and show the empty-state message inside the table instead.
 
   return (
     <div
@@ -529,18 +523,18 @@ export default function BoardView() {
         <label className="wc-toggle">
           <input
             type="checkbox"
-            checked={!!prefs?.rowColorMode}
-            onChange={toggleRowTint}
-          />
-          Row tint
-        </label>
-        <label className="wc-toggle">
-          <input
-            type="checkbox"
             checked={!!showOnlineOnly}
             onChange={toggleShowOnline}
           />
           Show online only
+        </label>
+        <label className="wc-toggle">
+          <input
+            type="checkbox"
+            checked={!!prefs?.rowColorMode}
+            onChange={toggleRowTint}
+          />
+          Row tint
         </label>
       </div>
 
@@ -743,239 +737,286 @@ export default function BoardView() {
           </button>
         </div>
 
-        {pagedUsers.map((u) => {
-          // Determine timezone: explicit on user, then mapping by id or name, then prefs.tz
-          const mapping = prefs?.userTimezones || {};
-          const mappedById = mapping[u.id];
-          const mappedByName = mapping[u.name];
-          const overrides = prefs?.userOverrides || {};
-          const userOverride = overrides[u.id] || {};
-          const userTz =
-            userOverride.timezone ||
-            u.timezone ||
-            mappedById ||
-            mappedByName ||
-            tz;
-          const usedAssumed = !u.timezone && !userOverride.timezone; // true if we used mapping or prefs
-          const uStart = userOverride.startHour || start;
-          const uEnd = userOverride.endHour || end;
-          const { timeStr, status } = computeStatusForNow(
-            userTz,
-            uStart,
-            uEnd,
-            days
-          );
-          // Workday progress calculation (0..1)
-          const toMinutes = (hhmm) => {
-            const parts = (hhmm || "").split(":").map(Number);
-            const h = parts[0] || 0;
-            const m = parts[1] || 0;
-            return h * 60 + m;
-          };
+        {pagedUsers.length === 0 ? (
+          <div className="wc-empty">No teammates are online right now.</div>
+        ) : (
+          pagedUsers.map((u) => {
+            // Determine timezone: explicit on user, then mapping by id or name, then prefs.tz
+            const mapping = prefs?.userTimezones || {};
+            const mappedById = mapping[u.id];
+            const mappedByName = mapping[u.name];
+            const overrides = prefs?.userOverrides || {};
+            const userOverride = overrides[u.id] || {};
+            const userTz =
+              userOverride.timezone ||
+              u.timezone ||
+              mappedById ||
+              mappedByName ||
+              tz;
+            const usedAssumed = !u.timezone && !userOverride.timezone; // true if we used mapping or prefs
+            const uStart = userOverride.startHour || start;
+            const uEnd = userOverride.endHour || end;
+            const { timeStr, status } = computeStatusForNow(
+              userTz,
+              uStart,
+              uEnd,
+              days
+            );
+            // Workday progress calculation (0..1)
+            const calcProgress = (tzName, startHhmm, endHhmm) => {
+              const toMinutes = (hhmm) => {
+                const parts = (hhmm || "").split(":").map(Number);
+                const h = parts[0] || 0;
+                const m = parts[1] || 0;
+                return h * 60 + m;
+              };
+              try {
+                const nowParts = new Intl.DateTimeFormat("en-CA", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                  hour12: false,
+                  timeZone: tzName,
+                }).format(new Date());
+                const curMin = toMinutes(nowParts);
+                const sMin = toMinutes(startHhmm);
+                const eMin = toMinutes(endHhmm);
 
-          let progress = 0;
-          try {
-            const nowParts = new Intl.DateTimeFormat("en-CA", {
-              hour: "2-digit",
-              minute: "2-digit",
-              hour12: false,
-              timeZone: userTz,
-            }).format(new Date());
-            const curMin = toMinutes(nowParts);
-            const sMin = toMinutes(start);
-            const eMin = toMinutes(end);
+                // Handle three cases: full-day, same-day, overnight
+                if (sMin === eMin) {
+                  const total = 24 * 60;
+                  const elapsed = curMin;
+                  return Math.min(1, Math.max(0, elapsed / total));
+                }
 
-            // Handle three cases:
-            // 1) start === end -> treat as full-day shift
-            // 2) eMin > sMin -> normal same-day shift
-            // 3) eMin < sMin -> overnight shift (wraps past midnight)
-            if (sMin === eMin) {
-              // full day: progress is fraction of day
-              const total = 24 * 60;
-              const elapsed = curMin;
-              progress = Math.min(1, Math.max(0, elapsed / total));
-            } else if (eMin > sMin) {
-              // normal same-day interval
-              if (curMin <= sMin) progress = 0;
-              else if (curMin >= eMin) progress = 1;
-              else progress = (curMin - sMin) / (eMin - sMin);
-            } else {
-              // overnight: eMin < sMin (e.g., 22:00 -> 06:00)
-              const total = 24 * 60 - sMin + eMin;
-              const within = curMin >= sMin || curMin <= eMin;
-              if (!within) {
-                progress = 0;
-              } else {
+                if (eMin > sMin) {
+                  if (curMin <= sMin) return 0;
+                  if (curMin >= eMin) return 1;
+                  return (curMin - sMin) / (eMin - sMin);
+                }
+
+                // overnight
+                const total = 24 * 60 - sMin + eMin;
+                const within = curMin >= sMin || curMin <= eMin;
+                if (!within) return 0;
                 let elapsed = 0;
                 if (curMin >= sMin) elapsed = curMin - sMin;
                 else elapsed = 24 * 60 - sMin + curMin;
-                progress = Math.min(1, Math.max(0, elapsed / total));
+                return Math.min(1, Math.max(0, elapsed / total));
+              } catch {
+                return 0;
               }
+            };
+
+            const progress = calcProgress(userTz, uStart, uEnd);
+            // exact local time with seconds for tooltip
+            let exactTime = "";
+            try {
+              exactTime = new Intl.DateTimeFormat([], {
+                hour: "numeric",
+                minute: "2-digit",
+                second: "2-digit",
+                hour12: true,
+                timeZone: userTz,
+              }).format(new Date());
+            } catch {
+              exactTime = timeStr;
             }
-          } catch {
-            progress = 0;
-          }
-          // exact local time with seconds for tooltip
-          let exactTime = "";
-          try {
-            exactTime = new Intl.DateTimeFormat([], {
-              hour: "numeric",
-              minute: "2-digit",
-              second: "2-digit",
-              hour12: true,
-              timeZone: userTz,
-            }).format(new Date());
-          } catch {
-            exactTime = timeStr;
-          }
-          const isOpen = openTooltip === u.id;
-          return (
-            <div
-              key={u.id}
-              className={`wc-row ${status} ${isOpen ? "open" : ""}`}
-              role="row"
-              tabIndex={0}
-              aria-label={`${u.name}, ${status}, local time ${timeStr}`}
-              onClick={() => setOpenTooltip(isOpen ? null : u.id)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  setOpenTooltip(isOpen ? null : u.id);
-                }
-              }}
-            >
-              <div className="wc-col wc-name" role="cell">
-                <img src={u.photo_thumb_small} alt="" className="wc-avatar" />
-                <div
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    minWidth: 0,
-                  }}
-                >
-                  <span className="wc-name-text">{u.name}</span>
-                  <div className="wc-name-meta">
-                    <div className="wc-timeline" aria-hidden="true">
-                      <div
-                        className={`wc-timeline-fill ${status}`}
-                        style={{ width: `${Math.round(progress * 100)}%` }}
-                        aria-label={`Workday progress ${Math.round(
-                          progress * 100
-                        )} percent`}
-                      />
+            const isOpen = openTooltip === u.id;
+            return (
+              <div
+                key={u.id}
+                className={`wc-row ${status} ${isOpen ? "open" : ""}`}
+                role="row"
+                tabIndex={0}
+                aria-label={`${u.name}, ${status}, local time ${timeStr}`}
+                onClick={() => setOpenTooltip(isOpen ? null : u.id)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    setOpenTooltip(isOpen ? null : u.id);
+                  }
+                }}
+              >
+                <div className="wc-col wc-name" role="cell">
+                  <img src={u.photo_thumb_small} alt="" className="wc-avatar" />
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      minWidth: 0,
+                    }}
+                  >
+                    <span className="wc-name-text">{u.name}</span>
+                    <div className="wc-name-meta">
+                      <div className="wc-timeline" aria-hidden="true">
+                        <div
+                          className={`wc-timeline-fill ${status}`}
+                          style={{ width: `${Math.round(progress * 100)}%` }}
+                          aria-label={`Workday progress ${Math.round(
+                            progress * 100
+                          )} percent`}
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
 
-              {/* col 2: time + glyph, left-aligned at longest-name boundary (via --name-col) */}
-              <div
-                className="wc-col wc-timewrap"
-                role="cell"
-                aria-live="polite"
-              >
-                <span className="wc-time">{timeStr}</span>
-                <span className={`wc-glyph ${status}`} aria-hidden="true" />
-              </div>
-
-              {/* col 3: flexible filler */}
-              <div className="wc-col wc-fill" role="cell" aria-hidden="false">
-                <span
-                  className="wc-tz"
-                  aria-label={`Timezone: ${
-                    userTz || prefs?.timezone || "default"
-                  }`}
+                {/* col 2: time + glyph, left-aligned at longest-name boundary (via --name-col) */}
+                <div
+                  className="wc-col wc-timewrap"
+                  role="cell"
+                  aria-live="polite"
                 >
-                  {userTz || prefs?.timezone || "—"}
-                  {usedAssumed && userTz ? (
-                    <span className="assumed"> (assumed)</span>
+                  <span className="wc-time">{timeStr}</span>
+                  <span className={`wc-glyph ${status}`} aria-hidden="true" />
+                </div>
+
+                {/* col 3: flexible filler */}
+                <div className="wc-col wc-fill" role="cell" aria-hidden="false">
+                  <span
+                    className="wc-tz"
+                    aria-label={`Timezone: ${
+                      userTz || prefs?.timezone || "default"
+                    }`}
+                  >
+                    {userTz || prefs?.timezone || "—"}
+                    {usedAssumed && userTz ? (
+                      <span className="assumed"> (default)</span>
+                    ) : null}
+                  </span>
+                  {userOverride &&
+                  (userOverride.timezone ||
+                    userOverride.startHour ||
+                    userOverride.endHour) ? (
+                    <button
+                      className="wc-override-badge"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        startEdit(u);
+                      }}
+                      aria-label={`Override: ${
+                        userOverride.timezone || "default"
+                      } ${uStart}–${uEnd}`}
+                      title={`Override: ${
+                        userOverride.timezone || "default"
+                      } ${uStart}–${uEnd}`}
+                    >
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        xmlns="http://www.w3.org/2000/svg"
+                        aria-hidden
+                      >
+                        <path
+                          d="M12 7a5 5 0 100 10 5 5 0 000-10z"
+                          stroke="#f59e0b"
+                          strokeWidth="1.4"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                        <path
+                          d="M12 9v4l2 1"
+                          stroke="#f59e0b"
+                          strokeWidth="1.4"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    </button>
                   ) : null}
-                </span>
-                <button
-                  className="wc-edit"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    startEdit(u);
-                  }}
+                </div>
+                {/* Tooltip: appears on hover/focus, or when row is toggled open */}
+                <div
+                  className="wc-tooltip"
+                  role="tooltip"
+                  aria-hidden={!isOpen}
                 >
-                  Edit
-                </button>
+                  {editingUser === u.id ? (
+                    <div className="override-form">
+                      <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+                        {(() => {
+                          const zones = TIMEZONES.slice();
+                          if (
+                            editTemp.timezone &&
+                            !zones.includes(editTemp.timezone)
+                          )
+                            zones.unshift(editTemp.timezone);
+                          return (
+                            <select
+                              value={editTemp.timezone || ""}
+                              onChange={(e) =>
+                                setEditTemp({
+                                  ...editTemp,
+                                  timezone: e.target.value,
+                                })
+                              }
+                              style={{ flex: 1, padding: 6 }}
+                            >
+                              <option value="">(use default)</option>
+                              {zones.map((z) => (
+                                <option key={z} value={z}>
+                                  {z}
+                                </option>
+                              ))}
+                            </select>
+                          );
+                        })()}
+                      </div>
+                      <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+                        <input
+                          type="time"
+                          value={editTemp.startHour}
+                          onChange={(e) =>
+                            setEditTemp({
+                              ...editTemp,
+                              startHour: e.target.value,
+                            })
+                          }
+                          style={{ padding: 6 }}
+                        />
+                        <input
+                          type="time"
+                          value={editTemp.endHour}
+                          onChange={(e) =>
+                            setEditTemp({
+                              ...editTemp,
+                              endHour: e.target.value,
+                            })
+                          }
+                          style={{ padding: 6 }}
+                        />
+                      </div>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <button onClick={() => saveOverride(u.id)}>Save</button>
+                        <button onClick={cancelEdit}>Cancel</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div
+                        className="wc-tooltip-meta"
+                        style={{ marginBottom: 6 }}
+                      >
+                        <div style={{ fontWeight: 600 }}>{u.name}</div>
+                        <div style={{ color: "#64748b", fontSize: 12 }}>
+                          ID: {u.id}
+                        </div>
+                      </div>
+                      <div className="wc-tooltip-time">
+                        Local now: {exactTime}
+                      </div>
+                      <div className="wc-tooltip-hours">
+                        Work hours: {uStart}–{uEnd}{" "}
+                        {Array.isArray(days) ? `(${days.join(",")})` : ""}
+                      </div>
+                      <div className="wc-tooltip-status">Status: {status}</div>
+                    </>
+                  )}
+                </div>
               </div>
-              {/* Tooltip: appears on hover/focus, or when row is toggled open */}
-              <div className="wc-tooltip" role="tooltip" aria-hidden={!isOpen}>
-                {editingUser === u.id ? (
-                  <div className="override-form">
-                    <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-                      {(() => {
-                        const zones = TIMEZONES.slice();
-                        if (
-                          editTemp.timezone &&
-                          !zones.includes(editTemp.timezone)
-                        )
-                          zones.unshift(editTemp.timezone);
-                        return (
-                          <select
-                            value={editTemp.timezone || ""}
-                            onChange={(e) =>
-                              setEditTemp({
-                                ...editTemp,
-                                timezone: e.target.value,
-                              })
-                            }
-                            style={{ flex: 1, padding: 6 }}
-                          >
-                            <option value="">(use default)</option>
-                            {zones.map((z) => (
-                              <option key={z} value={z}>
-                                {z}
-                              </option>
-                            ))}
-                          </select>
-                        );
-                      })()}
-                    </div>
-                    <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-                      <input
-                        type="time"
-                        value={editTemp.startHour}
-                        onChange={(e) =>
-                          setEditTemp({
-                            ...editTemp,
-                            startHour: e.target.value,
-                          })
-                        }
-                        style={{ padding: 6 }}
-                      />
-                      <input
-                        type="time"
-                        value={editTemp.endHour}
-                        onChange={(e) =>
-                          setEditTemp({ ...editTemp, endHour: e.target.value })
-                        }
-                        style={{ padding: 6 }}
-                      />
-                    </div>
-                    <div style={{ display: "flex", gap: 8 }}>
-                      <button onClick={() => saveOverride(u.id)}>Save</button>
-                      <button onClick={cancelEdit}>Cancel</button>
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    <div className="wc-tooltip-time">
-                      Local now: {exactTime}
-                    </div>
-                    <div className="wc-tooltip-hours">
-                      Work hours: {uStart}–{uEnd}{" "}
-                      {Array.isArray(days) ? `(${days.join(",")})` : ""}
-                    </div>
-                    <div className="wc-tooltip-status">Status: {status}</div>
-                  </>
-                )}
-              </div>
-            </div>
-          );
-        })}
+            );
+          })
+        )}
       </div>
 
       {/* Pagination controls */}
